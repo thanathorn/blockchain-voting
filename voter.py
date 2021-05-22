@@ -1,5 +1,6 @@
 import socket
 import time
+import os
 from transaction import Transaction
 
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -9,8 +10,8 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 server.settimeout(0.2)
 server.bind(("", 30002))
 
-pk = input("Enter your private key:")
-pub = input("Enter your public key:")
+clear = lambda: print('\n'*100)
+choose = []
 
 temp_var = [
     {
@@ -78,3 +79,17 @@ def broadcastTx(tx):
     time.sleep(1)
 
 
+pk = input("Enter your private key: ")
+pub = input("Enter your public key: ")
+clear()
+j = 1
+
+for question in temp_var:
+    i = 0
+    print("Question {} : {}".format(j,question['question']['question']))
+    for ans in question['answers']:
+        print ("{}. {}".format(i+1,ans['answer']))
+        i = i+1
+    j = j + 1
+    choose.append(input("Enter your choice : "))
+    clear()
