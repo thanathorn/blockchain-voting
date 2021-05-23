@@ -14,5 +14,4 @@ class Question(models.Model):
 
 class Choice(models.Model):
     choice = models.CharField(null=False, blank=False, max_length=100)
-    address = models.TextField(null=False, blank=False, max_length=1000)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)

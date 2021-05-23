@@ -1,3 +1,5 @@
+import hashlib
+
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +18,7 @@ class voterQuestion(APIView):
             for answer in answers:
                 answers_list.append({
                     "answer": answer.choice,
-                    "address": answer.address
+                    "address": hashlib.sha224(answer.choice.encode()).hexdigest()
                 })
             toAppend = {
                 "question": {
