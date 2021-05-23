@@ -1,6 +1,7 @@
 import socket
 import time
 import os
+import requests
 from transaction import Transaction
 
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -13,55 +14,6 @@ server.bind(("", 30002))
 clear = lambda: print('\n'*100)
 choose = []
 
-temp_var = [
-    {
-        "question": {
-            "question_id": 1,
-            "question": "Choose your prime minister",
-            "vote_accepted": 1
-        },
-        "answers": [
-            {
-                "answer": "Too",
-                "address": "asfkwnertvbmtjpbncxvbASFlmnLASHfnALSFjpo"
-            }, {
-                "answer": "Taksin",
-                "address": "asfkwnertvbmtjpbncxvbASFlmnLASHfnALSFjpo"
-            }
-        ]
-    },
-    {
-        "question": {
-            "question_id": 2,
-            "question": "Choose your grade",
-            "vote_accepted": 1
-        },
-        "answers": [
-            {
-                "answer": "A",
-                "address": "asfASFdbfgkwnertvbmtjpbncxvbASFlmnLASHfnALSFjpo"
-            }, {
-                "answer": "A+",
-                "address": "asfkwAlmliOpnertvbmtjpbncxvbASFlmnLASHfnALSFjpo"
-            }
-        ]
-    }
-]
-
-selected_answer = [
-    {
-        "question_id": "",
-        "answer_address": ""
-    },
-    {
-        "question_id": "",
-        "answer_address": ""
-    }
-]
-
-
-def getQuestion():
-    pass
 
 
 def createTx(pub,pk):
@@ -69,7 +21,7 @@ def createTx(pub,pk):
     tx = []
     for question in temp_var:
         select = choose[i]
-        if(question == int (select)-1)
+        if(question == int (select)-1):
             address = question['answers']['address']
             tx2 = Transaction()
             tx2.setType("transfer")
@@ -83,9 +35,6 @@ def createTx(pub,pk):
     return tx
 
 
-def vote():
-    tx = createTx()
-    broadcastTx(tx)
 
 
 def broadcastTx(tx):
@@ -99,6 +48,9 @@ pub = input("Enter your public key: ")
 clear()
 j = 1
 
+temp = requests.get('http://127.0.0.1:8000/master/voter/question')
+temp_var = temp.json()
+
 for question in temp_var:
     i = 0
     print("Question {} : {}".format(j,question['question']['question']))
@@ -106,5 +58,10 @@ for question in temp_var:
         print ("{}. {}".format(i+1,ans['answer']))
         i = i+1
     j = j + 1
-    choose.append(input("Enter your choice : "))
+    while 1:
+        checkinput = input("Enter your choice:")
+        if(checkinput.isnumeric() and int(checkinput) <= i and int(checkinput) > 0):
+            break
+    choose.append(checkinput)
     clear()
+print('เสร็จแล้วจ้า')
