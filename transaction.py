@@ -1,6 +1,5 @@
+import base64
 import json
-
-from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 import hashlib
 import TxFromTo
 import time
@@ -9,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 
 
 class Transaction:
@@ -16,15 +16,15 @@ class Transaction:
         self.hash = None
         self.type = None
         self.timestamp = None
-        self.tx_from = None
-        self.tx_to = None
+        self.tx_from = TxFromTo.TxFromTo(address=None, value=None)
+        self.tx_to = TxFromTo.TxFromTo(address=None, value=None)
         self.signature = None
 
     def setTimestamp(self, timestamp):
         if int(timestamp < 1621704625):
-            self.timestamp = time.time()
+            self.timestamp = int(time.time())
         else:
-            self.timestamp = timestamp
+            self.timestamp = int(timestamp)
 
     def getTimestamp(self):
         return self.timestamp
@@ -56,8 +56,7 @@ class Transaction:
         return self.signature
 
     def signSignature(self, privateKey):
-        pk = load_pem_private_key(privateKey, None, default_backend())
-
+        pk = load_pem_private_key(privateKey.encode(), None, default_backend())
         signature = pk.sign(
             str.encode("{}{}{}{}".format(self.type, self.timestamp, self.tx_from, self.tx_to)),
             padding.PSS(
@@ -66,32 +65,34 @@ class Transaction:
             ),
             hashes.SHA256()
         )
-        self.signature = signature
+        self.signature = base64.b64encode(signature).decode('ascii')
 
     def hashTx(self):
         self.hash = hashlib.sha256(str.encode("{}{}{}{}{}".format(self.type, self.timestamp, self.tx_from, self.tx_to,
-                                                                  self.signature)))
+                                                                  self.signature))).hexdigest()
 
     def getHash(self):
         return self.hash
 
     def verify(self):
-        pubkey = load_pem_public_key(self.tx_from.getAddress(), default_backend())
         try:
-            pubkey.verify(
-                self.signature,
-                str.encode("{}{}{}{}".format(self.type, self.timestamp, self.tx_from, self.tx_to)),
-                padding.PSS(
-                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH,
-                ),
-                hashes.SHA256()
-            )
+            if self.type != "create":
+                pubkey = load_pem_public_key(self.tx_from.getAddress().encode(), default_backend())
+                pubkey.verify(
+                    base64.b64decode(self.signature.encode('ascii')),
+                    str.encode("{}{}{}{}".format(self.type, self.timestamp, self.tx_from, self.tx_to)),
+                    padding.PSS(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH,
+                    ),
+                    hashes.SHA256()
+                )
             if (hashlib.sha256(str.encode("{}{}{}{}{}".format(self.type, self.timestamp, self.tx_from, self.tx_to,
-                                                              self.signature))) != self.hash):
+                                                              self.signature))).hexdigest() != self.hash):
                 return False
             return True
         except InvalidSignature:
+            print("Invalid Signature")
             return False
 
     def __str__(self):
@@ -99,7 +100,7 @@ class Transaction:
             "hash": self.hash,
             "type": self.type,
             "timestamp": self.timestamp,
-            "tx_from": self.tx_from,
-            "tx_to": self.tx_to,
+            "tx_from": self.tx_from.toJson(),
+            "tx_to": self.tx_to.toJson(),
             "signature": self.signature
         })

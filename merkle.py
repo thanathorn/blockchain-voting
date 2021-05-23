@@ -1,10 +1,10 @@
 import hashlib, json
 from collections import OrderedDict
 
-
 class MerkleTree:
     def __init__(self, listoftransaction=None):
-        self.listoftransaction = listoftransaction
+        newlist = sorted(listoftransaction, key=lambda x: x.getTimestamp())
+        self.listoftransaction = newlist
         self.past_transaction = OrderedDict()
 
     def create_tree(self):
@@ -18,9 +18,9 @@ class MerkleTree:
                 current_right = listoftransaction[index + 1]
             else:
                 current_right = ''
-            current_hash = hashlib.sha256(current.encode('utf-8'))
+            current_hash = hashlib.sha256(current.__str__().encode('utf-8'))
             if current_right != '':
-                current_right_hash = hashlib.sha256(current_right.encode('utf-8'))
+                current_right_hash = hashlib.sha256(current_right.__str__().encode('utf-8'))
             past_transaction[listoftransaction[index]] = current_hash.hexdigest()
             if current_right != '':
                 past_transaction[listoftransaction[index + 1]] = current_right_hash.hexdigest()
