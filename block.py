@@ -5,7 +5,8 @@ import time
 
 class Block:
     def __init__(self, timestamp, merkle, nonce=None, _id=None, prevBlockHash=None,
-                 difficulty=0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff):
+                 difficulty=0x0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff):
+        #0x0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff 5 Minute
         self.id = _id
         self.prevBlock = prevBlockHash
         self.timestamp = None
