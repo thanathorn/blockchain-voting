@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import *
 from .serializer import *
-
+from django.core.exceptions import *
 
 class voterQuestion(APIView):
     def get(self, request):
@@ -33,3 +33,19 @@ class voterQuestion(APIView):
         for question in questions:
             question.choice_set.all().values()
         return Response(resp)
+
+
+class registrationAsk(APIView):
+    def post(self, request, *args, **kwargs):
+        student_id = request.data.get("student_id", None)
+        try:
+            voter = Voter.objects.get(student_id=student_id)
+            return Response({
+                "already_get_credit": 1 == voter.already_get_credit
+            })
+        except:
+            return Response({
+                "result": 0,
+                "data": "NOT_EXIST"
+            })
+
