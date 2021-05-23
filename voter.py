@@ -64,8 +64,23 @@ def getQuestion():
     pass
 
 
-def createTx():
-    return Transaction("transfer")
+def createTx(pub,pk):
+    i = 0
+    tx = []
+    for question in temp_var:
+        select = choose[i]
+        if(question == int (select)-1)
+            address = question['answers']['address']
+            tx2 = Transaction()
+            tx2.setType("transfer")
+            tx2.setTxFrom(address=pub, value="2000")
+            tx2.setTxTo(address=address, value="2000")
+            tx2.setTimestamp(16211767050)
+            tx2.signSignature(privateKey=pk)
+            tx2.hashTx()
+            tx.append(tx2)
+        i = i+1
+    return tx
 
 
 def vote():
