@@ -1,5 +1,10 @@
+import base64
 import json
 import pickle
+import time
+import zmq
+
+from blockchain import Blockchain
 from transaction import Transaction
 from merkle import MerkleTree
 from block import Block
@@ -68,11 +73,10 @@ jb2QDv+k4ONP1o3wPvNq4ocbHZOvzfx+pO/M58EVCkMK
 tx = Transaction()
 tx.setType("create")
 # tx.setTxFrom(address=pubkey, value="2000")
-tx.setTxTo(address=pubkey, value="9999999")
-tx.setTimestamp(1621767039)
+tx.setTxTo(address="", value=0)
+tx.setTimestamp(time.time())
 tx.signSignature(privateKey=prikey)
 tx.hashTx()
-print(tx.verify())
 
 tx2 = Transaction()
 tx2.setType("transfer")
@@ -82,13 +86,66 @@ tx2.setTimestamp(1621767050)
 tx2.signSignature(privateKey=prikey)
 tx2.hashTx()
 
-tree = MerkleTree([tx, tx2])
+tx3 = Transaction()
+tx3.setType("transfer")
+tx3.setTxFrom(address=pubkey, value="2000")
+tx3.setTxTo(address=pubkey2, value="2000")
+tx3.setTimestamp(1621767055)
+tx3.signSignature(privateKey=prikey)
+tx3.hashTx()
+
+# my_pickle_string = pickle.dumps(tx)
+# # print(my_pickle_string)
+# f = open("../currentBlock.txt", "w")
+# f.write(base64.b64encode(my_pickle_string).decode('ascii'))
+# f.close()
+#
+# with open('../currentBlock.txt', 'rb') as f:
+#     x = f.read()
+#     abc = pickle.loads(base64.b64decode(x))
+#     print(abc.getTimestamp())
+# context = zmq.Context()
+# context.setsockopt(zmq.RCVTIMEO, 3000)
+# #  Socket to talk to server
+# print("Connecting to master server…")
+# socket = context.socket(zmq.REQ)
+#
+# socket.connect("tcp://localhost:30002")
+# #  Do 10 requests, waiting each time for a response
+# for request in range(100):
+#     print("Sending request %s …" % request)
+#     print(my_pickle_string)
+#     socket.send(my_pickle_string)
+#
+#     #  Get the reply.
+#     try:
+#         message = socket.recv()
+#         print("Received reply %s [ %s ]" % (request, message))
+#     except:
+#         socket.close()
+#         socket = context.socket(zmq.REQ)
+#         context.setsockopt(zmq.RCVTIMEO, 3000)
+#         socket.connect("tcp://localhost:30002")
+tree = MerkleTree([tx, tx2, tx3])
 tree.create_tree()
 merkle = tree.Get_past_transacion()
-
-block = Block(1621767060, tree)
-
-block.calcNonce()
+txCheckList = []
+for node in merkle:
+    if isinstance(node, Transaction):
+        txCheckList.append(node)
+tree2 = MerkleTree(txCheckList)
+tree2.create_tree()
+print(tree2.Get_Root_leaf())
+print(tree.Get_Root_leaf())
+    # print(node)
+# chain = Blockchain()
+#
+# block = Block(1621767060, tree, prevBlockHash=chain.last_block().blockHash())
+# block.calcNonce()
+#
+#
+# chain.addBlock(block)
+# chain.save()
 # with open('data.pickle', 'wb') as f:
 #     # Pickle the 'data' dictionary using the highest protocol available.
 #     pickle.dump(block, f, pickle.HIGHEST_PROTOCOL)

@@ -49,3 +49,13 @@ class registrationAsk(APIView):
                 "data": "NOT_EXIST"
             })
 
+
+class minerBlock(APIView):
+    def get(self, request):
+        try:
+            with open('../currentBlock.txt', 'rb') as f:
+                x = f.read()
+                return Response({"block": x})
+        except:
+            return Response("", 404)
+
