@@ -10,7 +10,10 @@ class Blockchain:
     def __init__(self):
         try:
             self.chain = pickle.load(open("blockchain.bin", 'rb'))
-        except:
+            print("[*] Blockchain: opening chain file")
+        except Exception as e:
+            print(e)
+            print("[*] Blockchain: creating chain file")
             self.chain = []
             self.createGenesisBlock()
 
@@ -29,9 +32,10 @@ class Blockchain:
             return  True
 
     def save(self):
-        with open('blockchain.bin', 'wb') as blockchainFile:
-            # Pickle the 'data' dictionary using the highest protocol available.
-            pickle.dump(self.chain, blockchainFile, pickle.HIGHEST_PROTOCOL)
+        blockchainFile = open('blockchain.bin', 'wb')
+        print("Chain saved")
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(self.chain, blockchainFile, pickle.HIGHEST_PROTOCOL)
 
     def createGenesisBlock(self):
         prikey = """-----BEGIN RSA PRIVATE KEY-----
@@ -78,3 +82,5 @@ aG+BwzHO0W6PIJH1cxq4kN1Dw4cG1e/cjQDNXAhVcf9lnv8ZLRbDmJE=
 
         self.addBlock(block)
         self.save()
+        print("[*] Blockchain: genesis block added")
+

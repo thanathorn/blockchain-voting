@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import pickle
 import socket
@@ -9,6 +10,7 @@ from blockchain import Blockchain
 from transaction import Transaction
 from merkle import MerkleTree
 from block import Block
+from helper import printLog
 # Threads:
 # 1. Question server thread (Port 80)
 # 2. Miner Control thread (Port 30001)
@@ -29,21 +31,29 @@ minerServer.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 # minerServer.settimeout(1)
 continueBroadcast = True
 nonceListening = False
-
-nonceCheckQueue = []
+chain = Blockchain()
+nonceCheckQueue = set()
 txQueue = {
+    "waiting_validate": [],
     "waiting": [],
     "mining": []
 }
-
+miningMutex = threading.Lock()
 try:
     with open('mempool.bin', 'rb') as f:
         txQueue = pickle.load(f)
+        print("[*] mempool: opening mempool file")
 except (FileNotFoundError, EOFError):
+    print("[*] mempool: creating mempool file")
     txQueue = {
         "waiting": [],
         "mining": []
     }
+
+if len(txQueue['mining']):
+    print("[*] mempool: there are tx in mining queue")
+if len(txQueue['waiting']):
+    print("[*] mempool: there are tx in waiting queue")
 
 
 def txValidate():
@@ -65,45 +75,55 @@ def transactionListener():
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:30002")
-    print("[*] transactionListener: bind complete")
+    printLog("transactionListener", "bind complete")
 
     while True:
-        print("[*] transactionListener: waiting for tx")
+        printLog("transactionListener", "waiting for tx")
         #  Wait for next request from client
         message = socket.recv()
-        print("[*] transactionListener: received tx")
-        print("[*] transactionListener:  %s" % message)
+        printLog("transactionListener", "received tx")
+        printLog("transactionListener", message)
         try:
             tx_in = pickle.loads(message)
             txQueue['waiting'].append(tx_in)
             socket.send(b"OK")
-            print("[*] transactionListener: received tx added to queue")
+            printLog("transactionListener", "received tx added to queue")
             # TODO: Validate tx overspend
         except:
             time.sleep(1)
             socket.send(b"ERROR")
-            print("[!] transactionListener: received tx not added to queue")
+            printLog("transactionListener", "received tx not added to queue", "error")
 
 
 def txQueueManager():
+    global miningMutex
     lastTimestamp = time.time()
     while True:
         if len(txQueue['mining']) != 0:
-            print("[*] txQueueManager: transaction already in mining queue")
+            printLog("txQueueManager", "{} transaction already in mining queue".format(len(txQueue['mining'])))
             time.sleep(20)
         else:
             if time.time() - lastTimestamp >= 600:
-                print("[*] txQueueManager: time passed for 10 minute, adding txs to queue")
-                if len(txQueue['waiting']) >= 0:
+                lastTimestamp = time.time()
+                printLog("txQueueManager", "time passed for 10 minute, adding remain txs to queue")
+                if len(txQueue['waiting']) > 0:
                     while True:
                         try:
+                            miningMutex.acquire()
                             for i in range(0, 10):
                                 txQueue['mining'].append(txQueue['waiting'].pop())
                         except IndexError:
+                            miningMutex.release()
                             break
+                else:
+                    printLog("txQueueManager", "no remain txs in queue")
+                    printLog("txQueueManager", "adding dummy tx")
+                    # TODO: mine dummy tx
+
             else:
                 if len(txQueue['waiting']) >= 10:
-                    print("[*] txQueueManager: adding txs to queue")
+                    lastTimestamp = time.time()
+                    printLog("txQueueManager", "adding txs to queue")
                     while True:
                         try:
                             for i in range(0, 10):
@@ -121,30 +141,32 @@ def mempoolFileUpdate():
 
 
 def minerManager():
-    state = "mining"
+    state = "stop"
     global continueBroadcast
     global nonceListening
     global txQueue
+    global chain
+    global miningMutex
     while True:
-        print("[*] minerManager: state is %s" % state)
         if state == "mining":
             if len(txQueue['mining']):
+                miningMutex.acquire()
                 # Build Block
-                print("[*] minerManager: building merkle tree")
+                printLog("minerManager", "building merkle tree")
                 tree = MerkleTree(txQueue['mining'])
+                miningMutex.release()
                 tree.create_tree()
-                print("[*] minerManager: building block")
-                block = Block(time.time(), tree)
-                print("[*] minerManager: dumping block")
+                printLog("minerManager", "building block")
+                block = Block(time.time(), tree, prevBlockHash=chain.last_block().blockHash())
+                printLog("minerManager", "dumping block")
                 block_str = pickle.dumps(block)
                 miningFile = open("currentBlock.txt", "w")
                 miningFile.write(base64.b64encode(block_str).decode('ascii'))
                 miningFile.close()
-                print("[*] minerManager: broadcasting block")
+                printLog("minerManager", "building broadcast block")
                 continueBroadcast = True
                 nonceListening = True
                 # Broadcast block ready
-                chain = Blockchain()
                 message = json.dumps({
                     "packetType": "mine",
                     "data": {
@@ -152,21 +174,25 @@ def minerManager():
                         "prevBlock": base64.b64encode(pickle.dumps(chain.last_block())).decode('ascii')
                     }
                 }).encode()
-                print("[*] minerManager: broadcasting block")
+                printLog("minerManager", "broadcasting block")
                 # broadcast block and wait for nonce
                 while continueBroadcast:
                     minerServer.sendto(message, ('<broadcast>', 30001))
                     if len(nonceCheckQueue):
                         block.nonce = nonceCheckQueue.pop()
-                        print("[*] minerManager: checking nonce %s" % block.nonce)
+                        printLog("minerManager", "checking nonce %s" % block.nonce)
                         if block.verifyNonce():
-                            print("[*] minerManager: nonce checking complete, Correct")
+                            printLog("minerManager", "nonce checking complete, Correct")
+                            block.calcHeader()
                             continueBroadcast = False
                             nonceListening = False
                             state = "stop"
-                            # TODO: Add to chain
+                            chain.addBlock(block)
+                            chain.save()
+                            txQueue['mining'] = []
+                            nonceCheckQueue.clear()
                         else:
-                            print("[!] minerManager: nonce checking complete, Incorrect")
+                            printLog("minerManager", "nonce checking complete, Incorrect", "error")
                     time.sleep(1)
         elif state == "stop":
             stopPacket = {
@@ -178,39 +204,49 @@ def minerManager():
             for i in range(0,5):
                 minerServer.sendto(json.dumps(stopPacket).encode(), ('<broadcast>', 30001))
                 time.sleep(1)
-
+            if len(txQueue['mining']):
+                state = "mining"
 
 def nonceListener():
     global nonceCheckQueue
     global minerServer
     global nonceListening
-    minerServer.bind(("", 30001))
+    minerServer.bind(("192.168.1.14", 30001))
     while True:
+        data, addr = minerServer.recvfrom(30000)
         if nonceListening:
-            data, addr = minerServer.recvfrom(4096)
-            print("[*] nonceListener: received nonce")
             print("received message: %s" % data)
-            # add nonce to queue
-            nonceCheckQueue.append(data)
+            try:
+                incoming_data = json.loads(data)
+                if incoming_data['packetType'] == "nonce":
+                    printLog("nonceListener", "received nonce")
+                    # add nonce to queue
+                    nonceCheckQueue.add(incoming_data['data']['nonce'])
+            except:
+                pass
+
         else:
             time.sleep(0.2)
 
 
-print("[*] Starting master server....")
-print("[*] Starting master server address broadcasting thread....")
+printLog("Starting", "master server....")
+printLog("Starting", "master server address broadcasting thread....")
 selfBroadcastThread = threading.Thread(target=selfBroadcast)
-print("[*] Starting transaction listener thread....")
+printLog("Starting", "transaction listener thread....")
 transactionListenerThread = threading.Thread(target=transactionListener)
-print("[*] Starting transaction queue manager thread....")
+printLog("Starting", "transaction queue manager thread....")
 txQueueManagerThread = threading.Thread(target=txQueueManager)
-print("[*] Starting mempool thread....")
+printLog("Starting", "mempool thread....")
 mempoolFileUpdateThread = threading.Thread(target=mempoolFileUpdate)
-print("[*] Starting nonce listener thread....")
+printLog("Starting", "nonce listener thread....")
 nonceListenerThread = threading.Thread(target=nonceListener)
+printLog("Starting", "nonce listener thread....")
+minerManagerThread = threading.Thread(target=minerManager)
 
 selfBroadcastThread.start()
 transactionListenerThread.start()
 txQueueManagerThread.start()
 mempoolFileUpdateThread.start()
 nonceListenerThread.start()
+minerManagerThread.start()
 

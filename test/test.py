@@ -138,10 +138,12 @@ tree2.create_tree()
 print(tree2.Get_Root_leaf())
 print(tree.Get_Root_leaf())
     # print(node)
-# chain = Blockchain()
-#
-# block = Block(1621767060, tree, prevBlockHash=chain.last_block().blockHash())
-# block.calcNonce()
+chain = Blockchain()
+
+block = Block(1621767060, tree, prevBlockHash=chain.last_block().blockHash())
+block.calcNonce()
+print(block.verifyNonce())
+print(block.difficulty)
 #
 #
 # chain.addBlock(block)

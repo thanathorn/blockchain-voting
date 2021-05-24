@@ -49,7 +49,7 @@ class Block:
 
     def calcNonce(self):
         i = 0
-        print(int(time.time()))
+        # print(int(time.time()))
         rootLeaf = self.merkle.Get_Root_leaf()
         while True:
             if self.prevBlock is None:
@@ -65,7 +65,9 @@ class Block:
                 else:
                     self.nonce = i
                     self.calcHeader()
-                    break
+                    # print(int(time.time()))
+                    return self.nonce
+                    # break
             else:
                 if int("0x{}".format(
                         hashlib.sha256(
@@ -79,19 +81,32 @@ class Block:
                 else:
                     self.nonce = i
                     self.calcHeader()
-                    break
-        print(int(time.time()))
+                    # print(int(time.time()))
+                    return self.nonce
 
     def verifyNonce(self):
-        if int("0x{}".format(
-                hashlib.sha256(
-                    str.encode("{}{}{}{}{}".format(self.prevBlock,
-                                                   self.timestamp, self.difficulty,
-                                                   self.nonce, self.merkle.Get_Root_leaf())
-                               )
-                ).hexdigest()
-        ), 16) <= int(self.difficulty):
-            return True
+        rootLeaf = self.merkle.Get_Root_leaf()
+        if self.prevBlock is None:
+            if int("0x{}".format(
+                    hashlib.sha256(
+                        str.encode("{}{}{}{}".format(
+                            self.timestamp, self.difficulty,
+                            self.nonce, rootLeaf)
+                        )
+                    ).hexdigest()
+            ), 16) < int(self.difficulty):
+                return True
+        else:
+            if int("0x{}".format(
+                    hashlib.sha256(
+                        str.encode("{}{}{}{}{}".format(self.prevBlock,
+                                                       self.timestamp, self.difficulty,
+                                                       self.nonce, rootLeaf)
+                                   )
+                    ).hexdigest()
+            ), 16) < int(self.difficulty):
+                return True
+        return False
 
     def blockHash(self):
         rootLeaf = self.merkle.Get_Root_leaf()
