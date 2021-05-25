@@ -1,5 +1,4 @@
 import base64
-import datetime
 import json
 import pickle
 import socket
@@ -11,6 +10,7 @@ from transaction import Transaction
 from merkle import MerkleTree
 from block import Block
 from helper import printLog
+import copy
 # Threads:
 # 1. Question server thread (Port 80)
 # 2. Miner Control thread (Port 30001)
@@ -38,6 +38,34 @@ txQueue = {
     "waiting": [],
     "mining": []
 }
+prikey = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAobve3e/IvnBc/mqAoNURIF++ZVMNnih3Nf3UkC2QSpQn/vIj
+NRZHXb4Vq9lgpnvAezbakbAr/w1CrVPjCA4sjywFC93h4TC8oJKuzVmDBWdJxbs4
+BRTwSzeerCtGXv+ZRvsSP9WIKXFX0II5BUo+50uaASMvF+mBzNs75XDqZ9ooeYX6
+jwCchSAIa2kpCV/rtuT2ABGVNVY62VmJ+d4WFfXDEilDpUwZ0exPA3sqObJqqYjl
+JyQekvlEDpJvLshz6B2wBu7slqmn9s07it83emqC4kP7HPO3Di9ggPly/KLa47Ge
++jpjM+Nq6yiGrqHiTI0ZqLf+ncoKgIRqK3Di3QIDAQABAoIBAQCauGY5PJV3EXj0
+7h/FPG9Y4B79QZmqbp20afI6R0xc/CTS8QMbWwfEtv52WsrqGUMG3G/1pWpBYYci
+1zg+UYjxIjRlqMrYqc4ZcpmE2xfLSIc7gKHTwrcpzbiejfuRD8WrMK7BoF3U/5f5
+YUp5NBC/JgTbB7SalIjW1/gRw5aK55OShqE9ECRqhwIiIsOpTqLkwscGV5r3SAt4
+Fll5WJ2TcjivLqApsK5Adv9y2mp/FCaV4M8sursLXkiCtgIOsuiic4Ezz6TdOyH2
+OVj8qhoRl0oHxF/Um6Z3whRykKZILdgobyZWmomCH6gfcQL8Rz0pNx7QcPl6imDi
+sjbvwHyBAoGBANd1E0ZRjMyKMBp7CiFGD/JFag6JU3Q/23PefLI6/GakDLkPEEID
+2Od+2VtJJsvltlzIVOpY1UCE/QCRON/KXD7zVNZVaHqrnvZmYcWgc1wiIKvSyrAK
+W0jis8K53/SvyIbdDkd+z4n3eMZKMjF/2+AYjNikSlpqaTi7zvB9jaYhAoGBAMAq
+2a0699z0P0Kqf7asVa2JtiUcxxkxaNlDpLha0igx48NUR6CsH9AD7VubSgc53IAK
+FDYz781GryjwuGHuMjPp2mXFwiO2QvXMTK0ReScrDoQUiAPaPH7U/CTuVt2J8z0j
+W8Nay/XWJ5x8gJP0F47Ee19QE1xgzQxuqoBB7K09AoGAQPm5mlc1kumJoDLC1039
+uR5d4YxgcopfcA4EpOtM+tc2TwjP6limrQmAGxtwa8UWvdxcX1/yz8ZLVkR1Vmf8
+ca+IQir3mybuhXhSu/qrT3mrSKYFIhm9dbmIZI0RkQUCAEnh6IXBqOXMsl/lyy+3
+61j8AMlq8uFsYgOhYL08XoECgYEArfJbxfX5xXUGCleBcZ5/k61zRhbNll1mVjxn
+z0TOtPmr/PS+PY9w4H+djG19zhqvIOt+ri3HJJ6WEU4M6QCPSvSk77jZ6i+iXxKG
+WabWbwEHi8F1+V7Dod8zOk7QLIshtbba6nO26hnnEzyTutmZtW7fakB2tgkdsuI9
+zglertUCgYEA0ltjY4olXDY6eEdL5WvDY39gfT03+6taGYbruB1DDNHaEq92fHUZ
+I/7IHd+2fobwNMT1AgnWyDSbNtWYHFqffL+lsOQqf3P6ZEIpE2AubdWh7LnD4sG2
+aG+BwzHO0W6PIJH1cxq4kN1Dw4cG1e/cjQDNXAhVcf9lnv8ZLRbDmJE=
+-----END RSA PRIVATE KEY-----
+"""
 miningMutex = threading.Lock()
 try:
     with open('mempool.bin', 'rb') as f:
@@ -46,6 +74,7 @@ try:
 except (FileNotFoundError, EOFError):
     print("[*] mempool: creating mempool file")
     txQueue = {
+        "waiting_validate": [],
         "waiting": [],
         "mining": []
     }
@@ -56,8 +85,62 @@ if len(txQueue['waiting']):
     print("[*] mempool: there are tx in waiting queue")
 
 
+def checkBalanceByOwner(address=None):
+    global chain
+    balance = 0
+    txs = []
+    for block in chain.chain:
+        for merkleNode in block.merkle.Get_past_transacion():
+            if isinstance(merkleNode, Transaction):
+                if merkleNode.type == "create":
+                    if merkleNode.tx_to.address == address:
+                        txs.append(merkleNode)
+                        balance += merkleNode.tx_to.value
+                elif merkleNode.type == "transfer":
+                    if merkleNode.tx_to.address == address:
+                        txs.append(merkleNode)
+                        balance += merkleNode.tx_from.value
+                    elif merkleNode.tx_from.address == address:
+                        txs.append(merkleNode)
+                        balance -= merkleNode.tx_from.value
+    return balance
+
+
 def txValidate():
-    pass
+    global chain
+    while True:
+        if len(txQueue['waiting_validate']):
+            printLog("txValidate", "Validating Tx")
+            lookingTx = txQueue['waiting_validate'].pop(0)
+            tempQueue = copy.deepcopy(txQueue)
+            txsFromTemp = []
+            for tx in tempQueue['mining']:
+                txsFromTemp.append(tx)
+            for tx in tempQueue['waiting']:
+                txsFromTemp.append(tx)
+            for tx in tempQueue['waiting_validate']:
+                txsFromTemp.append(tx)
+            balance = checkBalanceByOwner(lookingTx.tx_from.address)
+            for tx in txsFromTemp:
+                if tx.type == "create":
+                    if tx.tx_to.address == lookingTx.tx_from.address:
+                        balance += tx.tx_to.value
+                elif tx.type == "transfer":
+                    if tx.tx_to.address == lookingTx.tx_from.address:
+                        balance += tx.tx_to.value
+                    elif tx.tx_from.address == lookingTx.tx_from.address:
+                        balance -= tx.tx_to.value
+            if lookingTx.type == "transfer":
+                if balance - lookingTx.tx_from.value >= 0:
+                    txQueue['waiting'].append(lookingTx)
+                    printLog("txValidate", "Tx valid, adding to queue")
+                else:
+                    printLog("txValidate", "Found invalid tx", "error")
+            else:
+                txQueue['waiting'].append(lookingTx)
+                printLog("txValidate", "Tx valid, adding to queue")
+        else:
+            time.sleep(1)
 
 
 def selfBroadcast():
@@ -73,25 +156,24 @@ def selfBroadcast():
 
 def transactionListener():
     context = zmq.Context()
-    socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:30002")
+    zSocket = context.socket(zmq.REP)
+    zSocket.bind("tcp://*:30002")
     printLog("transactionListener", "bind complete")
 
     while True:
         printLog("transactionListener", "waiting for tx")
         #  Wait for next request from client
-        message = socket.recv()
+        message = zSocket.recv()
         printLog("transactionListener", "received tx")
         printLog("transactionListener", message)
         try:
             tx_in = pickle.loads(message)
-            txQueue['waiting'].append(tx_in)
-            socket.send(b"OK")
+            txQueue['waiting_validate'].append(tx_in)
+            zSocket.send(b"OK")
             printLog("transactionListener", "received tx added to queue")
-            # TODO: Validate tx overspend
         except:
             time.sleep(1)
-            socket.send(b"ERROR")
+            zSocket.send(b"ERROR")
             printLog("transactionListener", "received tx not added to queue", "error")
 
 
@@ -103,32 +185,48 @@ def txQueueManager():
             printLog("txQueueManager", "{} transaction already in mining queue".format(len(txQueue['mining'])))
             time.sleep(20)
         else:
-            if time.time() - lastTimestamp >= 600:
+            if time.time() - lastTimestamp >= 30:
                 lastTimestamp = time.time()
-                printLog("txQueueManager", "time passed for 10 minute, adding remain txs to queue")
+                printLog("txQueueManager", "time passed for 10 minute and tx mining queue is blank,"
+                                           " adding remain txs to queue")
                 if len(txQueue['waiting']) > 0:
                     while True:
+                        printLog("txQueueManager", "MUTEX1")
+                        miningMutex.acquire()
                         try:
-                            miningMutex.acquire()
+                            printLog("txQueueManager", "MUTEX2")
                             for i in range(0, 10):
-                                txQueue['mining'].append(txQueue['waiting'].pop())
+                                txQueue['mining'].append(txQueue['waiting'].pop(0))
+                            miningMutex.release()
                         except IndexError:
                             miningMutex.release()
                             break
                 else:
                     printLog("txQueueManager", "no remain txs in queue")
                     printLog("txQueueManager", "adding dummy tx")
-                    # TODO: mine dummy tx
-
+                    dummyTx = Transaction()
+                    dummyTx.setType("create")
+                    # tx.setTxFrom(address=pubkey, value="2000")
+                    dummyTx.setTxTo(address="", value=0)
+                    dummyTx.setTimestamp(time.time())
+                    dummyTx.signSignature(privateKey=prikey)
+                    dummyTx.hashTx()
+                    txQueue['waiting'].append(dummyTx)
             else:
                 if len(txQueue['waiting']) >= 10:
                     lastTimestamp = time.time()
                     printLog("txQueueManager", "adding txs to queue")
                     while True:
+                        added = 0
                         try:
+                            miningMutex.acquire()
                             for i in range(0, 10):
-                                txQueue['mining'].append(txQueue['waiting'].pop())
+                                txQueue['mining'].append(txQueue['waiting'].pop(0))
+                                added += 1
+                            miningMutex.release()
                         except IndexError:
+                            printLog("txQueueManager", "added {} txs to queue".format(added))
+                            miningMutex.release()
                             break
 
 
@@ -153,6 +251,7 @@ def minerManager():
                 miningMutex.acquire()
                 # Build Block
                 printLog("minerManager", "building merkle tree")
+                printLog("minerManager", "{} txs added to block".format(len(txQueue['mining'])))
                 tree = MerkleTree(txQueue['mining'])
                 miningMutex.release()
                 tree.create_tree()
@@ -201,11 +300,12 @@ def minerManager():
                     "command": "stop"
                 }
             }
-            for i in range(0,5):
+            for i in range(0, 5):
                 minerServer.sendto(json.dumps(stopPacket).encode(), ('<broadcast>', 30001))
                 time.sleep(1)
             if len(txQueue['mining']):
                 state = "mining"
+
 
 def nonceListener():
     global nonceCheckQueue
@@ -213,7 +313,7 @@ def nonceListener():
     global nonceListening
     minerServer.bind(("192.168.1.14", 30001))
     while True:
-        data, addr = minerServer.recvfrom(30000)
+        data, addr = minerServer.recvfrom(50000)
         if nonceListening:
             print("received message: %s" % data)
             try:
@@ -242,6 +342,8 @@ printLog("Starting", "nonce listener thread....")
 nonceListenerThread = threading.Thread(target=nonceListener)
 printLog("Starting", "nonce listener thread....")
 minerManagerThread = threading.Thread(target=minerManager)
+printLog("Starting", "Tx Validator  thread....")
+txValidateThread = threading.Thread(target=txValidate)
 
 selfBroadcastThread.start()
 transactionListenerThread.start()
@@ -249,4 +351,4 @@ txQueueManagerThread.start()
 mempoolFileUpdateThread.start()
 nonceListenerThread.start()
 minerManagerThread.start()
-
+txValidateThread.start()
