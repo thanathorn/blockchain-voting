@@ -14,8 +14,6 @@ server.bind(("", 30002))
 clear = lambda: print('\n'*100)
 choose = []
 
-
-
 def createTx(pub,pk):
     i = 0
     tx = []
@@ -35,11 +33,24 @@ def createTx(pub,pk):
     return tx
 
 
-
-
 def broadcastTx(tx):
-    server.sendto(tx, ('<broadcast>', 37020))
-    print("message sent!")
+    context = zmq.Context()
+
+    #  Socket to talk to server
+    print("Connecting to hello world server…")
+    socket = context.socket(zmq.REQ)
+    socket.connect("tcp://localhost:30002")
+
+    my_pickle_string = pickle.dumps(tx)
+    # print(my_pickle_string)
+
+    #  Do 10 requests, waiting each time for a response
+    print("Sending request")
+    socket.send(my_pickle_string)
+
+    #  Get the reply.
+    message = socket.recv()
+    print("Received reply [ %s ]" % (message))
     time.sleep(1)
 
 
