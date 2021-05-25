@@ -55,7 +55,7 @@ def listenMasterRequest():
     global minerState
     minerClient.bind(("192.168.1.15", 30001))
     while True:
-        data, addr = minerClient.recvfrom(30000)
+        data, addr = minerClient.recvfrom(50000)
         # print("received message: %s" % data)
         try:
             incoming_data = json.loads(data)

@@ -69,11 +69,19 @@ jb2QDv+k4ONP1o3wPvNq4ocbHZOvzfx+pO/M58EVCkMK
 -----END RSA PRIVATE KEY-----
 """
 
-for i in range(0,10):
+for i in range(0, 1):
+    # tx = Transaction()
+    # tx.setType("create")
+    # # tx.setTxTo(address="fe0206ee89a5fb7f4a00ed369adb7912ca8d83dc123c4d73ef15aa7b", value=1)
+    # tx.setTxTo(address=pubkey, value=1)
+    # tx.setTimestamp(time.time())
+    # tx.signSignature(privateKey=prikey)
+    # tx.hashTx()
+
     tx = Transaction()
-    tx.setType("create")
-    # tx.setTxFrom(address=pubkey, value="2000")
-    tx.setTxTo(address="", value=0)
+    tx.setType("transfer")
+    tx.setTxFrom(address=pubkey2, value="1")
+    tx.setTxTo(address="fe0206ee89a5fb7f4a00ed369adb7912ca8d83dc123c4d73ef15aa7b", value=1)
     tx.setTimestamp(time.time())
     tx.signSignature(privateKey=prikey)
     tx.hashTx()
@@ -95,4 +103,4 @@ for i in range(0,10):
     #  Get the reply.
     message = socket.recv()
     print("Received reply [ %s ]" % (message))
-    time.sleep(0.3)
+    time.sleep(0.2)
