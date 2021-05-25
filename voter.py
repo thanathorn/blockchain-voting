@@ -1,6 +1,5 @@
 import socket
 import time
-import os
 import requests
 from transaction import Transaction
 
@@ -53,9 +52,13 @@ def broadcastTx(tx):
     print("Received reply [ %s ]" % (message))
     time.sleep(1)
 
+student_id = input("Enter your student ID: ")
+private = open("./keys/voter/{}/private.pem".format(student_id,student_id),"r")
+public = open("./keys/voter/{}/public.pem".format(student_id,student_id),"r")
+pk = private.read()
+pub = public.read()
 
-pk = input("Enter your private key: ")
-pub = input("Enter your public key: ")
+
 clear()
 j = 1
 
