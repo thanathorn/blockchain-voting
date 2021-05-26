@@ -311,7 +311,7 @@ def nonceListener():
     global nonceCheckQueue
     global minerServer
     global nonceListening
-    minerServer.bind(("192.168.1.14", 30001))
+    minerServer.bind((socket.gethostbyname(socket.gethostname()), 30001))
     while True:
         data, addr = minerServer.recvfrom(50000)
         if nonceListening:
