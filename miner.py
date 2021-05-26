@@ -53,7 +53,7 @@ def listenMasterRequest():
     global currentMiningID
     global minerClient
     global minerState
-    minerClient.bind(("192.168.1.15", 30001))
+    minerClient.bind((socket.gethostbyname(socket.gethostname()), 30001))
     while True:
         data, addr = minerClient.recvfrom(50000)
         # print("received message: %s" % data)
