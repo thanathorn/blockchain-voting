@@ -18,7 +18,7 @@ def masterAddressListener():
     global masterIP
     masterServerAddrSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     masterServerAddrSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    masterServerAddrSocket.bind(("192.168.1.14", 30003))
+    masterServerAddrSocket.bind((socket.gethostbyname(socket.gethostname()), 30003))
     while True:
         data, addr = masterServerAddrSocket.recvfrom(50000)
         try:
@@ -94,7 +94,7 @@ def main():
     questionNum = 1
 
     # Get questions
-    questions = requests.get('http://127.0.0.1:8000/master/voter/question')
+    questions = requests.get('http://{}:8000/master/voter/question'.format(masterIP))
     questions = questions.json()
 
     # Print questions

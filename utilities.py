@@ -116,10 +116,11 @@ def transferToRegistration(regisNo, amount):
     regis_public_key_file = open("./keys/registration/{}/public.pem".format(regisNo), "r")
     pk = private_key_file.read()
     pub = public_key_file.read()
+    regisPub = regis_public_key_file.read()
     tx = Transaction()
     tx.setType("transfer")
-    tx.setTxFrom(address=pub, value="1")
-    tx.setTxTo(address=regis_public_key_file, value=amount)
+    tx.setTxFrom(address=pub, value=amount)
+    tx.setTxTo(address=regisPub, value=amount)
     tx.setTimestamp(time.time())
     tx.signSignature(privateKey=pk)
     tx.hashTx()
@@ -128,6 +129,7 @@ def transferToRegistration(regisNo, amount):
 
 def main():
     global chain
+    masterAddressListener()
     clear()
     print("\n\n")
     print("Select function to execute")
@@ -152,7 +154,7 @@ def main():
             except ValueError:
                 pass
         createVotePower(amount)
-    elif selected == 2:
+    elif selected == 3:
         while True:
             try:
                 regisNo = int(input("Enter registration machine number: "))

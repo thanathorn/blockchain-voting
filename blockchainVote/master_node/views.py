@@ -40,8 +40,11 @@ class registrationAsk(APIView):
         student_id = request.data.get("student_id", None)
         try:
             voter = Voter.objects.get(student_id=student_id)
+            toCheck = voter.already_get_credit
+            voter.already_get_credit = True
+            voter.save()
             return Response({
-                "already_get_credit": 1 == voter.already_get_credit
+                "already_get_credit": 1 == toCheck
             })
         except:
             return Response({
