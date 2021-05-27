@@ -38,6 +38,7 @@ txQueue = {
     "waiting": [],
     "mining": []
 }
+hostIp = socket.gethostbyname(socket.gethostname())
 prikey = """-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAobve3e/IvnBc/mqAoNURIF++ZVMNnih3Nf3UkC2QSpQn/vIj
 NRZHXb4Vq9lgpnvAezbakbAr/w1CrVPjCA4sjywFC93h4TC8oJKuzVmDBWdJxbs4
@@ -147,7 +148,7 @@ def selfBroadcast():
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     server.settimeout(0.2)
-    message = json.dumps({"address": socket.gethostbyname(socket.gethostname())}).encode()
+    message = json.dumps({"address": hostIp}).encode()
     while True:
         server.sendto(message, ('<broadcast>', 30003))
         # print("[*] selfBroadcast: Broadcast complete")
@@ -311,7 +312,7 @@ def nonceListener():
     global nonceCheckQueue
     global minerServer
     global nonceListening
-    minerServer.bind((socket.gethostbyname(socket.gethostname()), 30001))
+    minerServer.bind((hostIp, 30001))
     while True:
         data, addr = minerServer.recvfrom(50000)
         if nonceListening:
