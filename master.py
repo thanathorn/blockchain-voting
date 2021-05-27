@@ -39,6 +39,7 @@ txQueue = {
     "mining": []
 }
 hostIp = socket.gethostbyname(socket.gethostname())
+hostIp = "192.168.1.14"
 prikey = """-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAobve3e/IvnBc/mqAoNURIF++ZVMNnih3Nf3UkC2QSpQn/vIj
 NRZHXb4Vq9lgpnvAezbakbAr/w1CrVPjCA4sjywFC93h4TC8oJKuzVmDBWdJxbs4
@@ -158,7 +159,7 @@ def selfBroadcast():
 def transactionListener():
     context = zmq.Context()
     zSocket = context.socket(zmq.REP)
-    zSocket.bind("tcp://*:30002")
+    zSocket.bind("tcp://{}:30002".format(hostIp))
     printLog("transactionListener", "bind complete")
 
     while True:
