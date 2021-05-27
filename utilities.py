@@ -13,13 +13,14 @@ from transaction import Transaction
 clear = lambda: print('\n' * 100)
 masterIP = "127.0.0.1"
 chain = Blockchain()
+hostIp = socket.gethostbyname(socket.gethostname())
 
 
 def masterAddressListener():
     global masterIP
     masterServerAddrSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     masterServerAddrSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    masterServerAddrSocket.bind(("192.168.1.14", 30003))
+    masterServerAddrSocket.bind((hostIp, 30003))
     while True:
         data, addr = masterServerAddrSocket.recvfrom(50000)
         try:
